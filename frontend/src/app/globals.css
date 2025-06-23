@@ -1,0 +1,68 @@
+/* FILE: src/app/globals.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 99%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 240 10% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.75rem;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* The Aurora Background Effect */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: radial-gradient(
+      ellipse 80% 80% at 50% -20%,
+      hsl(var(--primary) / 0.1),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 80% 80% at 50% -20%,
+      hsl(var(--accent) / 0.15),
+      transparent
+    );
+  background-size: 200% 200%;
+  z-index: -1;
+  animation: aurora 80s linear infinite;
+}
+
+/* The Glassmorphism Card Style */
+@layer components {
+  .glass-card {
+    @apply bg-white/60 dark:bg-zinc-900/60 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg rounded-xl transition-all duration-300;
+  }
+  .glass-card:hover {
+    @apply border-white/40 dark:border-white/20 shadow-xl;
+  }
+}
