@@ -1,8 +1,24 @@
 # FILE: app/main.py
 
-from fastapi import FastAPI
+import logging
+import os
+import sys
+from pythonjsonlogger import jsonlogger
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import leads, dashboard, users # Import the new users router
+from fastapi.responses import JSONResponse
+from app.api.v1.router import api_v1_router as all_v1_routers
+from app.verticals import register_vertical_routers
+
+# Configure structured JSON logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+formatter = jsonlogger.JsonFormatter(
+    '%(asctime)s %(levelname)s %(name)s %(message)s'
+)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 # App Initialization
 app = FastAPI(
@@ -12,20 +28,38 @@ app = FastAPI(
 )
 
 # --- CORS Middleware ---
-origins = [ "http://localhost:3000" ]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Include API Routers ---
-app.include_router(leads.router, prefix="/api/v1/leads", tags=["Leads"])
-app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
-app.include_router(users.router, prefix="/api/v1/users", tags=["Users"]) # Add the new router
+# --- Centralized API Router Registration ---
+from app.api.v1.router import api_v1_router
+app.include_router(api_v1_router, prefix="/api/v1")
+
+# --- Dynamic Vertical Router Registration ---
+register_vertical_routers(app)
+
+
+# --- Global Exception Handler ---
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        "Unhandled exception",
+        extra={
+            "url": str(request.url),
+            "method": request.method,
+            "exception_type": type(exc).__name__,
+            "exception_message": str(exc)
+        }
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "An unexpected server error occurred."},
+    )
 
 @app.get("/")
 def read_root():

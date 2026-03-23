@@ -1,6 +1,9 @@
-fastapi
-uvicorn[standard]
-pydantic
+fastapi                                                                                    │
+uvicorn[standard]                                                                          │
+pydantic                                                                                   │
+firebase-admin==6.5.0                                                                      │
+python-dotenv==0.21.0                                                                      │
+python-multipart                                                                           │
+pandas                                                                                     │
+python-json-logger     
 firebase-admin
-python-multipart
-pandas 

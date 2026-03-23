@@ -6,7 +6,7 @@ interface Peer { name: string; leads: number; }
 
 export const PeerComparisonTable = ({ data, currentUser }: { data: Peer[], currentUser: string }) => {
     return (
-        <Card className="glass-card h-full">
+        <Card className="h-full shadow-md">
             <CardHeader>
                 <CardTitle>Peer Leaderboard</CardTitle>
             </CardHeader>

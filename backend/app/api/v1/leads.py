@@ -1,157 +1,255 @@
-# app/api/v1/leads.py
+# FILE: backend/app/api/v1/leads.py
 
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
-from typing import List, Dict, Any
-from google.cloud.firestore_v1.client import Client
-from google.cloud import firestore  # <<< CHANGE #1: IMPORT ADDED
-import pandas as pd
-import io
 import json
-import csv
-from pydantic import ValidationError
+import logging
+from typing import List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, status, Response, Query
 
-from app.schemas.lead import Lead, LeadInput
-from app.db.firestore import get_db
+from app.api.v1.dependencies import get_current_user, get_admin_user, get_nurturer_user, get_closing_agent_user, get_generator_user
+from app.schemas.lead import Lead, LeadImportInternal, LeadAssignmentUpdate, LeadStatusUpdate, BulkLeadAssignmentUpdate, ScheduleFollowUpRequest, LeadQualificationUpdate, ScheduleMeetingRequest, LeadCloseDetailsUpdate
+from app.services.lead_service import LeadService
 
+
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-def process_csv_data(contents: bytes, mapping: Dict[str, str]) -> List[Dict[str, Any]]:
-    """
-    This robustly processes CSV data using Python's built-in csv module,
-    avoiding complex pandas logic for maximum reliability.
-    """
-    processed_records = []
+@router.post("/bulk-assign", summary="[GENERATOR] Assign multiple leads to a nurturer")
+async def bulk_assign_leads_to_nurturer(
+    assignment: BulkLeadAssignmentUpdate,
+    auth: dict = Depends(get_generator_user),
+    lead_service: LeadService = Depends()
+):
     try:
-        # Use a BOM-safe encoding
-        decoded_content = contents.decode('utf-8-sig')
-        stream = io.StringIO(decoded_content)
-        # Use DictReader to automatically handle rows as dictionaries
-        reader = csv.DictReader(stream)
-
-        for row in reader:
-            record = {}
-            # Iterate through the user's mapping instructions
-            for file_header, db_field in mapping.items():
-                # Clean the file header for matching and check if it exists in the row
-                clean_file_header = file_header.strip()
-                if clean_file_header in row:
-                    record[db_field] = row[clean_file_header]
-            processed_records.append(record)
-            
-    except Exception as e:
-        raise ValueError(f"Error processing CSV file: {e}")
-        
-    return processed_records
-
-def process_excel_data(contents: bytes, mapping: Dict[str, str]) -> List[Dict[str, Any]]:
-    """ Processes Excel files using pandas, which is necessary for .xlsx format. """
-    df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
-    # Clean headers from the dataframe to ensure matching
-    df.columns = [str(col).strip() for col in df.columns]
-    df.rename(columns=mapping, inplace=True)
-    return df.to_dict(orient='records')
-
-
-@router.post("/upload-file", status_code=201)
-async def upload_leads_file(mapping: str = Form(...), file: UploadFile = File(...), db: Client = Depends(get_db)):
-    """
-    Receives a file and mapping, processes it with robust data sanitization,
-    validates it, and saves it to Firestore.
-    """
-    try:
-        column_mapping = json.loads(mapping)
-        if not isinstance(column_mapping, dict):
-            raise ValueError("Mapping must be a valid JSON object.")
-    except (json.JSONDecodeError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid mapping format: {e}")
-    
-    if "name" not in column_mapping.values() or "email" not in column_mapping.values():
-        raise HTTPException(status_code=400, detail="Mapping is incomplete. You must map columns to both 'name' and 'email'.")
-
-    contents = await file.read()
-    try:
-        if file.filename.endswith('.csv'):
-            processed_records = process_csv_data(contents, column_mapping)
-        elif file.filename.endswith('.xlsx'):
-            processed_records = process_excel_data(contents, column_mapping)
-        else:
-            raise HTTPException(status_code=400, detail="Invalid file format.")
-    except (ValueError, Exception) as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read or process file: {e}")
-
-    # --- Validation Logic with Data Sanitization ---
-    validation_errors = []
-    leads_to_import: List[LeadInput] = []
-    for i, record in enumerate(processed_records):
-        try:
-            # Clean record by removing keys with None values and empty strings
-            clean_record = {k: v for k, v in record.items() if v is not None and v != ''}
-            
-            if not clean_record.get('status'):
-                clean_record['status'] = 'New'
-            
-            # Now, validate the clean record
-            leads_to_import.append(LeadInput(**clean_record))
-        except ValidationError as e:
-            for error in e.errors():
-                field = error['loc'][0]
-                msg = error['msg']
-                validation_errors.append(f"Row {i + 2}, Column mapped to '{field}': {msg}")
-
-    if validation_errors:
-        error_detail_str = ". ".join(sorted(list(set(validation_errors)))[:5])
-        raise HTTPException(
-            status_code=422,
-            detail=f"Found {len(validation_errors)} validation error(s). Please fix your file. Sample errors: {error_detail_str}"
+        result = await lead_service.assign_to_nurturer(
+            tenant_id=auth['tenant_id'],
+            lead_ids=assignment.leadIds,
+            nurturer_id=assignment.agentId,
+            assigner_user=auth
         )
-
-    if not leads_to_import:
-        raise HTTPException(status_code=400, detail="No valid lead data found after processing.")
-
-    # --- Duplicate checking and Firestore batch write ---
-    imported_count = 0
-    duplicate_count = 0
-    leads_ref = db.collection('leads')
-    batch = db.batch()
-
-    for lead in leads_to_import:
-        query = leads_ref.where('email', '==', lead.email).limit(1).stream()
-        try:
-            next(query)
-            duplicate_count += 1
-        except StopIteration:
-            # --- CHANGE #2: MODIFIED LOGIC TO ADD TIMESTAMP ---
-            # 1. Convert the Pydantic model to a dictionary
-            lead_data = lead.model_dump(exclude_none=True)
-            
-            # 2. Add our new server-side timestamp field
-            lead_data['createdAt'] = firestore.SERVER_TIMESTAMP
-
-            # 3. Set the modified dictionary in the batch
-            new_lead_ref = leads_ref.document()
-            batch.set(new_lead_ref, lead_data)
-            imported_count += 1
-
-    if imported_count > 0:
-        batch.commit()
-    
-    return {
-        "status": "success",
-        "imported_count": imported_count,
-        "duplicate_count": duplicate_count,
-    }
-
-@router.get("/", response_model=List[Lead])
-async def get_all_leads(db: Client = Depends(get_db)):
-    leads_list = []
-    try:
-        leads_ref = db.collection('leads')
-        docs = docs = leads_ref.stream()
-        for doc in docs:
-            lead_data = doc.to_dict()
-            lead_data['id'] = doc.id
-            leads_list.append(lead_data)
-        return leads_list
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
-        print(f"An error occurred while fetching leads: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch leads from database")
+        logger.error(f"Error during bulk assignment to nurturer: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+@router.post("/{lead_id}/assign-to-closer", summary="[NURTURER] Assign an interested lead to a closer")
+async def assign_lead_to_closer(
+    lead_id: str,
+    assignment: LeadAssignmentUpdate,
+    auth: dict = Depends(get_nurturer_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        return await lead_service.assign_to_closer(
+            tenant_id=auth['tenant_id'],
+            lead_id=lead_id,
+            closer_id=assignment.agentId,
+            nurturer_user=auth
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error assigning lead to closer: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+@router.post("/add-manual", status_code=status.HTTP_201_CREATED, summary="Add a single lead manually")
+async def add_lead_manually(
+    lead: LeadImportInternal,
+    auth: dict = Depends(get_current_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        result = await lead_service.add_manual_lead(auth['tenant_id'], lead, auth)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error adding lead manually: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+@router.get("/my-leads", summary="[CLOSER] Get leads assigned to the current closer")
+async def get_my_assigned_leads(
+    auth: dict = Depends(get_closing_agent_user),
+    lead_service: LeadService = Depends(),
+    filter_status: str | None = Query(None, alias="status"),
+    limit: int = Query(25, gt=0, le=100),
+    start_after_id: str | None = Query(None, alias="startAfter")
+):
+    start_after_doc = None
+    return await lead_service.get_assigned_leads(
+        tenant_id=auth['tenant_id'],
+        user=auth,
+        filter_status=filter_status,
+        limit=limit,
+        start_after_doc=start_after_doc
+    )
+
+@router.post("/upload-file", summary="Bulk upload leads from a file")
+async def upload_leads_file(
+    mapping: str = Form(...),
+    file: UploadFile = File(...),
+    auth: dict = Depends(get_current_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        contents = await file.read()
+        column_mapping = json.loads(mapping)
+        result = await lead_service.bulk_upload_leads(
+            tenant_id=auth['tenant_id'],
+            file_contents=contents,
+            file_type=file.content_type,
+            column_mapping=column_mapping,
+            current_user=auth
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error during file upload: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred during file upload: {e}")
+
+@router.put("/{lead_id}/status", summary="Update a lead's status")
+async def update_lead_status(
+    lead_id: str,
+    status_update: LeadStatusUpdate,
+    auth: dict = Depends(get_current_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        result = await lead_service.update_lead_status(
+            tenant_id=auth['tenant_id'],
+            lead_id=lead_id,
+            status=status_update.status,
+            user=auth
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+@router.put("/{lead_id}/qualify", summary="[NURTURER] Qualify a lead")
+async def qualify_lead(
+    lead_id: str,
+    qualification_data: LeadQualificationUpdate,
+    auth: dict = Depends(get_nurturer_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        result = await lead_service.qualify_lead(
+            tenant_id=auth['tenant_id'],
+            lead_id=lead_id,
+            user=auth,
+            qualification_data=qualification_data
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+@router.get("/generated-leads", summary="[GENERATOR] Get leads created by the current generator")
+async def get_my_generated_leads(
+    auth: dict = Depends(get_generator_user),
+    lead_service: LeadService = Depends(),
+    limit: int = Query(None, gt=0, le=1000)
+):
+    return await lead_service.get_leads_by_generator(
+        tenant_id=auth['tenant_id'],
+        user=auth,
+        limit=limit
+    )
+
+@router.get("/admin/dashboard-stats", summary="[ADMIN] Get all statistics for the main dashboard")
+async def get_admin_dashboard_stats(
+    auth: dict = Depends(get_admin_user),
+    lead_service: LeadService = Depends()
+):
+    return await lead_service.get_admin_dashboard_stats(auth['tenant_id'])
+
+@router.get("/nurturing-queue", summary="[NURTURER] Get the lead nurturing queue", response_model=List[Lead])
+async def get_nurturing_queue(
+    auth: dict = Depends(get_nurturer_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        return await lead_service.get_nurturing_queue(auth['tenant_id'], auth)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while fetching the nurturing queue: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected server error occurred.")
+
+@router.get("/closed-won", summary="[ADMIN] Get all closed-won leads", response_model=List[Lead])
+async def get_closed_won_leads(
+    auth: dict = Depends(get_admin_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        return await lead_service.get_closed_won_leads(auth['tenant_id'])
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while fetching closed-won leads: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected server error occurred.")
+
+@router.get("/{lead_id}", summary="Get a single lead by its ID")
+async def get_lead_by_id(
+    lead_id: str,
+    auth: dict = Depends(get_current_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        lead = await lead_service.get_lead_by_id(auth['tenant_id'], lead_id)
+        if not lead:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
+        return lead
+    except Exception as e:
+        logger.error(f"Error retrieving lead {lead_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+@router.post("/{lead_id}/schedule-follow-up", summary="[NURTURER] Schedule a follow-up call")
+async def schedule_follow_up(
+    lead_id: str,
+    follow_up_request: ScheduleFollowUpRequest,
+    auth: dict = Depends(get_nurturer_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        return await lead_service.schedule_follow_up(
+            tenant_id=auth['tenant_id'],
+            lead_id=lead_id,
+            user_id=auth['uid'],
+            follow_up_data=follow_up_request
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+@router.post("/{lead_id}/schedule-meeting", summary="[CLOSER] Schedule a meeting")
+async def schedule_meeting(
+    lead_id: str,
+    meeting_request: ScheduleMeetingRequest,
+    auth: dict = Depends(get_closing_agent_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        return await lead_service.schedule_meeting(
+            tenant_id=auth['tenant_id'],
+            lead_id=lead_id,
+            user_id=auth['uid'],
+            meeting_data=meeting_request
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+@router.put("/{lead_id}/close", summary="[CLOSER] Close a lead")
+async def close_lead(
+    lead_id: str,
+    close_data: LeadCloseDetailsUpdate,
+    auth: dict = Depends(get_closing_agent_user),
+    lead_service: LeadService = Depends()
+):
+    try:
+        return await lead_service.close_lead(
+            tenant_id=auth['tenant_id'],
+            lead_id=lead_id,
+            user=auth,
+            close_data=close_data
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+

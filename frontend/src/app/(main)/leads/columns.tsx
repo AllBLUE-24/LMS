@@ -73,7 +73,7 @@ export const columns: ColumnDef<Lead>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-        const status = row.getValue("status") as string
+        const status = row.getValue("status") as Lead["status"]
         return (
             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusVariantMap[status]}`}>
                 {status}

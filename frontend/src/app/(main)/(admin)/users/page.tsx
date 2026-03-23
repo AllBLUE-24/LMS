@@ -1,5 +1,3 @@
-// FILE: src/app/(main)/admin/users/page.tsx
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
 import { Button } from '@/components/ui/button';
-import { DataTable } from '../../leads/data-table'; // We can reuse the leads data table
+import { DataTable } from '@/app/(main)/leads/data-table';
 import { User, columns } from './columns';
 import {
   Dialog,
@@ -18,20 +16,25 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useGetUsersQuery, useInviteUserMutation } from '@/store/apiSlice'; // <-- Using RTK Query hooks
 
 // Define all available capabilities in the system
 const ALL_CAPABILITIES = [
+  { id: 'is_admin', label: 'Is Administrator' },
   { id: 'can_generate_leads', label: 'Can Generate Leads' },
+  { id: 'head_of_generators', label: 'Head of Generators' },
   { id: 'can_nurture_leads', label: 'Can Nurture Leads' },
+  { id: 'head_of_nurturers', label: 'Head of Nurturers' },
   { id: 'can_close_leads', label: 'Can Close Leads' },
+  { id: 'head_of_closers', label: 'Head of Closers' },
   { id: 'can_reassign_leads', label: 'Can Re-assign Leads' },
   { id: 'can_view_all_reports', label: 'Can View All Reports' },
-  { id: 'is_admin', label: 'Is Administrator' },
 ];
 
 const inviteUserSchema = z.object({
@@ -43,10 +46,13 @@ const inviteUserSchema = z.object({
   }),
 });
 
+
 export default function UserManagementPage() {
-    const [users, setUsers] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+    // --- RTK Query Hooks for data fetching and mutation ---
+    const { data: users = [], isLoading, error } = useGetUsersQuery();
+    const [inviteUser, { isLoading: isInviting }] = useInviteUserMutation();
     
     const form = useForm<z.infer<typeof inviteUserSchema>>({
         resolver: zodResolver(inviteUserSchema),
@@ -58,56 +64,44 @@ export default function UserManagementPage() {
         },
     });
 
+    // Effect to reset form and close dialog on successful submission
     useEffect(() => {
-        async function fetchUsers() {
-            try {
-                const res = await fetch('http://localhost:8000/api/v1/users');
-                if (!res.ok) throw new Error('Failed to fetch users');
-                const data = await res.json();
-                setUsers(data);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setIsLoading(false);
-            }
+        if (form.formState.isSubmitSuccessful) {
+            form.reset();
+            setIsDialogOpen(false);
         }
-        fetchUsers();
-    }, []);
+    }, [form.formState.isSubmitSuccessful, form.reset]);
     
     async function onSubmit(values: z.infer<typeof inviteUserSchema>) {
-        console.log("Inviting user:", values);
         try {
-            const response = await fetch('http://localhost:8000/api/v1/users/invite', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values),
-            });
-            if (!response.ok) {
-                 const errorData = await response.json();
-                 throw new Error(errorData.detail || 'Failed to invite user');
-            }
-            // Success! Refetch users and close dialog
-            setIsLoading(true);
-            const res = await fetch('http://localhost:8000/api/v1/users');
-            const data = await res.json();
-            setUsers(data);
-            setIsDialogOpen(false);
-            form.reset();
-
+            await inviteUser(values).unwrap(); // .unwrap() will throw on error, simplifying error handling
         } catch(error: any) {
-            alert(`Error: ${error.message}`);
-        } finally {
-            setIsLoading(false);
+            const message = error.data?.detail || 'Failed to invite user';
+            form.setError("root", { type: "manual", message: message });
+            console.error(`Error: ${message}`);
         }
     }
 
+    const TableSkeleton = () => (
+        <div className="space-y-3 mt-4">
+            <div className="flex justify-between">
+                <Skeleton className="h-10 w-64" />
+                <Skeleton className="h-10 w-32" />
+            </div>
+            <div className="rounded-md border">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+            </div>
+        </div>
+    );
 
     return (
-        <div className="container mx-auto py-10 px-4 md:px-6">
+        <div>
             <header className="mb-8 flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-zinc-900">User Management</h1>
-                    <p className="text-zinc-500 mt-2">Invite and manage team members and their roles.</p>
+                    <p className="text-zinc-500 mt-2">Invite and manage team members and their capabilities.</p>
                 </div>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
@@ -117,7 +111,7 @@ export default function UserManagementPage() {
                         <DialogHeader>
                             <DialogTitle>Invite New User</DialogTitle>
                             <DialogDescription>
-                                Enter the user's details and assign their capabilities. They will receive an email to set up their account.
+                                Enter the user&apos;s details and assign their capabilities.
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -136,19 +130,20 @@ export default function UserManagementPage() {
                                 <Input id="password" type="password" {...form.register("password")} />
                                  {form.formState.errors.password && <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>}
                             </div>
-                             <div className="space-y-2">
+                            <div className="space-y-2">
                                 <Label>Capabilities</Label>
                                 <div className="space-y-2 rounded-md border p-4">
                                     {ALL_CAPABILITIES.map((item) => (
                                         <div key={item.id} className="flex items-center space-x-2">
                                             <Checkbox
                                                 id={item.id}
+                                                checked={(form.watch("capabilities") || []).includes(item.id)}
                                                 onCheckedChange={(checked) => {
                                                     const currentCaps = form.getValues("capabilities");
                                                     const newCaps = checked
                                                         ? [...currentCaps, item.id]
                                                         : currentCaps.filter((cap) => cap !== item.id);
-                                                    form.setValue("capabilities", newCaps);
+                                                    form.setValue("capabilities", newCaps, { shouldValidate: true });
                                                 }}
                                             />
                                             <Label htmlFor={item.id} className="font-normal">{item.label}</Label>
@@ -157,16 +152,21 @@ export default function UserManagementPage() {
                                 </div>
                                  {form.formState.errors.capabilities && <p className="text-sm text-red-500">{form.formState.errors.capabilities.message}</p>}
                             </div>
+                            {form.formState.errors.root && <p className="text-sm text-red-500">{form.formState.errors.root.message}</p>}
                              <DialogFooter>
-                                <Button type="submit">Send Invite</Button>
-                            </DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={isInviting}>
+                                    {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                    Send Invite
+                                </Button>
+                             </DialogFooter>
                         </form>
                     </DialogContent>
                 </Dialog>
             </header>
             
-            {isLoading ? <p>Loading users...</p> : <DataTable columns={columns} data={users} />}
+            {error && <div className="text-red-500">Error loading users: {String(error)}</div>}
+            {isLoading ? <TableSkeleton /> : <DataTable columns={columns} data={users} users={users} />}
         </div>
     );
 }
-

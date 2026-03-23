@@ -1,9 +1,12 @@
 "use client"
+
 import { ColumnDef } from "@tanstack/react-table"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ArrowUpDown, MoreHorizontal } from "lucide-react"
 
+// This type definition must match the data you fetch from your API
 export type User = {
   id: string
   name: string
@@ -30,31 +33,54 @@ export const columns: ColumnDef<User>[] = [
   },
   {
     accessorKey: "capabilities",
-    header: "Role / Capabilities",
+    header: "Capabilities",
     cell: ({ row }) => {
       const capabilities = row.getValue("capabilities") as string[]
-      if (!capabilities || capabilities.length === 0) return "No Capabilities";
-      const isAdmin = capabilities.includes('is_admin');
-      if (isAdmin) return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Administrator</span>
+      if (!capabilities || capabilities.length === 0) {
+        return <span className="text-slate-500">No Capabilities Assigned</span>
+      };
+
+      const isAdmin = capabilities.includes('admin');
+      if (isAdmin) {
+        return <Badge variant="destructive" className="font-semibold">Administrator</Badge>
+      }
       
-      return <div className="flex flex-wrap gap-1">{capabilities.map(cap => (
-          <span key={cap} className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-              {cap.replace(/_/g, ' ')}
-          </span>
-      ))}</div>
+      return (
+        <div className="flex flex-wrap gap-1">
+            {capabilities.map(cap => (
+                <Badge key={cap} variant="secondary" className="font-normal capitalize">
+                    {cap.replace(/_/g, ' ')}
+                </Badge>
+            ))}
+        </div>
+      )
     },
   },
   {
     id: "actions",
     cell: ({ row }) => {
-        // Here you would add an "Edit" button that opens a dialog
-        // to call the PUT /api/v1/users/{user_id}/capabilities endpoint.
-        return (
+      const user = row.original
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
-        )
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(user.email)}>
+              Copy user&apos;s email
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>Edit capabilities</DropdownMenuItem>
+            <DropdownMenuItem className="text-red-600 focus:text-white focus:bg-red-500">
+                Delete user
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
     }
   }
 ]

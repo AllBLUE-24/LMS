@@ -16,10 +16,10 @@ export const KpiCard = ({ title, value, icon, change, changeType }: KpiCardProps
         <Card className="p-5">
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="text-sm font-medium text-zinc-500">{title}</p>
-                    <p className="text-3xl font-bold text-zinc-900 mt-1">{value}</p>
+                    <p className="text-sm font-medium text-muted-foreground">{title}</p>
+                    <p className="text-3xl font-bold text-foreground mt-1">{value}</p>
                 </div>
-                <div className="w-10 h-10 flex items-center justify-center bg-zinc-100 rounded-full">
+                <div className="w-10 h-10 flex items-center justify-center bg-muted rounded-full">
                     {icon}
                 </div>
             </div>

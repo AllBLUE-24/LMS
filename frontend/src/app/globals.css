@@ -1,68 +1,180 @@
-/* FILE: src/app/globals.css */
+@import "tailwindcss";
+@import "tw-animate-css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Allow dark variant on all descendants */
+@custom-variant dark (&:is(.dark *));
+
+/* -- THEME VARIABLES INLINE -- */
+@theme inline {
+  /* Default sans: Sofia Pro → system UI → sans */
+  --font-sans: 'sofiapro', system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* New Semantic Colors */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-surface: var(--surface); /* New surface color */
+
+  /* Typography scale */
+  --font-size-h1: var(--h1);
+  --font-size-h2: var(--h2);
+  --font-size-h3: var(--h3);
+  --font-size-h4: var(--h4);
+  --font-size-h5: var(--h5);
+  --font-size-h6: var(--h6);
+  --font-size-body: var(--body);
+
+  /* Shadow variables */
+  --shadow-sm: var(--shadow-sm-value);
+  --shadow-md: var(--shadow-md-value);
+  --shadow-lg: var(--shadow-lg-value);
+}
+
+/* -- LIGHT MODE ROOT VARIABLES -- */
+:root {
+  --radius: 0.625rem; /* A very light, cool grey for main content */ /* A deep, soft charcoal for text */
+  --card: oklch(1 0 0); /* Pure white for card backgrounds (highest elevation) */
+  --card-foreground: oklch(0.145 0 0); /* Same as foreground for card text */
+  --popover: oklch(1 0 0); /* Pure white for popovers */
+  --popover-foreground: oklch(0.145 0 0); /* Same as foreground for popover text */
+  --primary: oklch(0.205 0 0); /* A rich, deep indigo/purple */
+  --primary-foreground: oklch(0.985 0 0); /* Pure white for contrast */
+  --secondary: oklch(0.97 0 0); /* A light, muted grey for secondary elements */
+  --secondary-foreground: oklch(0.205 0 0); /* Darker grey for text on secondary */
+  --muted: oklch(0.97 0 0); /* Even lighter grey for subtle backgrounds */
+  --muted-foreground: oklch(0.556 0 0); /* Medium grey for muted text */
+  --accent: oklch(0.97 0 0); /* A vibrant, playful magenta/purple for highlights */
+  --accent-foreground: oklch(0.205 0 0); /* Pure white for contrast */
+  --destructive: oklch(0.577 0.245 27.325); /* A clear, strong red for errors/destructive actions */
+  --destructive-foreground: 0 0% 100%; /* Pure white for contrast */
+  --border: oklch(0.922 0 0); /* Very subtle, light grey for borders (less prominent) */
+  --input: oklch(0.922 0 0); /* Same as border for input fields */
+  --ring: oklch(0.708 0 0); /* Same as primary for focus rings */
+  --chart-1: oklch(0.646 0.222 41.116); /* Keeping existing chart colors for now */
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0); /* Distinct, slightly darker than background for sidebar */
+  --sidebar-foreground: oklch(0.145 0 0); /* Same as foreground for sidebar text */
+  --sidebar-primary: oklch(0.205 0 0); /* Slightly darker primary for sidebar */
+  --sidebar-primary-foreground: oklch(0.985 0 0); /* White for contrast */
+  --sidebar-accent: oklch(0.97 0 0); /* Slightly darker accent for sidebar */
+  --sidebar-accent-foreground: oklch(0.205 0 0); /* White for contrast */
+  --sidebar-border: oklch(0.922 0 0); /* Subtle border for sidebar */
+  --sidebar-ring: oklch(0.708 0 0); /* Same as primary for sidebar focus rings */
+
+  --success: 140 70% 40%; /* Green */
+  --warning: 40 90% 50%; /* Yellow */
+  --info: 200 80% 50%; /* Cyan/Blue */
+  --surface: 220 15% 96%; /* Slightly darker than background for elevated surfaces (e.g., modals, tooltips) */
+
+  /* Typography scale values */
+  --h1: 3rem;
+  --h2: 2.25rem;
+  --h3: 1.875rem;
+  --h4: 1.5rem;
+  --h5: 1.25rem;
+  --h6: 1.125rem;
+  --body: 1rem;
+
+  /* Shadow values */
+  --shadow-sm-value: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md-value: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg-value: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+}
+
+/* -- DARK MODE OVERRIDES -- */
+.dark {
+  --background: oklch(0.145 0 0); /* Very dark, almost black, cool grey for main content */
+  --foreground: oklch(0.985 0 0); /* Very light grey for main text */
+  --card: oklch(0.205 0 0); /* For cards, clearly elevated */
+  --card-foreground: oklch(0.985 0 0); /* Same as foreground for card text */
+  --popover: oklch(0.205 0 0); /* Same as card for popovers */
+  --popover-foreground: oklch(0.985 0 0); /* Same as foreground for popover text */
+  --primary: oklch(0.922 0 0); /* A brighter, more luminous indigo/purple */
+  --primary-foreground: oklch(0.205 0 0); /* Dark background for contrast */
+  --secondary: oklch(0.269 0 0); /* A darker, muted grey for secondary elements */
+  --secondary-foreground: oklch(0.985 0 0); /* Lighter grey for text on secondary */
+  --muted: oklch(0.269 0 0); /* Darker muted for subtle backgrounds */
+  --muted-foreground: oklch(0.708 0 0); /* Medium grey for muted text */
+  --accent: oklch(0.269 0 0); /* A brighter, more luminous magenta/purple */
+  --accent-foreground: oklch(0.985 0 0); /* Dark background for contrast */
+  --destructive: oklch(0.704 0.191 22.216); /* A slightly brighter red for errors/destructive actions */
+  --destructive-foreground: 220 10% 5%; /* Dark background for contrast */
+  --border: oklch(1 0 0 / 10%); /* Subtle border, visible against darker backgrounds */
+  --input: oklch(1 0 0 / 15%); /* Same as border for input fields */
+  --ring: oklch(0.556 0 0); /* Same as primary for focus rings */
+  --chart-1: oklch(0.488 0.243 264.376); /* Keeping existing chart colors for now */
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0); /* Distinct, lighter than background for sidebar (Notion-like) */
+  --sidebar-foreground: oklch(0.985 0 0); /* Same as foreground for sidebar text */
+  --sidebar-primary: oklch(0.488 0.243 264.376); /* Slightly darker primary for sidebar */
+  --sidebar-primary-foreground: oklch(0.985 0 0); /* Dark background for contrast */
+  --sidebar-accent: oklch(0.269 0 0); /* Slightly darker accent for sidebar */
+  --sidebar-accent-foreground: oklch(0.985 0 0); /* Dark background for contrast */
+  --sidebar-border: oklch(1 0 0 / 10%); /* Subtle border for sidebar */
+  --sidebar-ring: oklch(0.556 0 0); /* Same as primary for sidebar focus rings */
+
+  --success: 140 60% 60%;
+  --warning: 40 80% 60%;
+  --info: 200 70% 60%;
+  --surface: 220 10% 15%; /* For elevated elements like modals, tooltips (same as card) */
+
+  /* Shadow values (more visible for dark mode) */
+  --shadow-sm-value: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-md-value: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg-value: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
 
 @layer base {
-  :root {
-    --background: 240 10% 99%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 240 10% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.75rem;
+  * {
+    @apply border-border outline-ring/50;
   }
-
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-/* The Aurora Background Effect */
-body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-image: radial-gradient(
-      ellipse 80% 80% at 50% -20%,
-      hsl(var(--primary) / 0.1),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 80% 80% at 50% -20%,
-      hsl(var(--accent) / 0.15),
-      transparent
-    );
-  background-size: 200% 200%;
-  z-index: -1;
-  animation: aurora 80s linear infinite;
-}
-
-/* The Glassmorphism Card Style */
-@layer components {
-  .glass-card {
-    @apply bg-white/60 dark:bg-zinc-900/60 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg rounded-xl transition-all duration-300;
-  }
-  .glass-card:hover {
-    @apply border-white/40 dark:border-white/20 shadow-xl;
-  }
-}

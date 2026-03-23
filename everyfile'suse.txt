@@ -1,0 +1,14 @@
+1. frontend/src/context/AuthContext.tsx: A React Context that manages the user's authentication state
+   (e.g., logged-in user, token) and makes it available throughout the application.
+
+2.  frontend/src/lib/apiClient.ts: The central Axios instance that injects the user's auth token into the
+          headers of all requests to the backend.
+
+
+         3. backend/app/api/v1/dependencies.py: Contains the get_current_user dependency, which acts as a
+         middleware to protect API endpoints.
+       
+       4. backend/app/db/firestore.py: Initializes the firebase-admin SDK, which is used for token verification
+          on the backend.
+
+          

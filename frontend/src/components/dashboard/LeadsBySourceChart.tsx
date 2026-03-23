@@ -1,38 +1,49 @@
 import React from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import { Card } from '@/components/ui/card';
+import { ChartContainer, ChartTooltipContent, ChartLegendContent, ChartConfig } from '@/components/ui/chart';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
+const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+
+const chartConfig = {
+    leads: {
+        label: "Leads",
+        color: "hsl(var(--primary))",
+    },
+} satisfies ChartConfig;
 
 export const LeadsBySourceChart = ({ data }) => {
+    // Transform the data from a map {name: value} to an array [{name, value}]
+    const chartData = data || [];
+
     return (
         <Card>
-            <div className="p-4 border-b border-slate-200">
-                <h3 className="text-lg font-semibold text-zinc-800">Leads by Source</h3>
-                <p className="text-sm text-zinc-500">Where your new leads are coming from.</p>
+            <div className="p-4">
+                <h3 className="text-lg font-semibold text-foreground">Leads by Source</h3>
+                <p className="text-sm text-muted-foreground">Where your new leads are coming from.</p>
             </div>
             <div className="w-full h-72 p-4">
-                <ResponsiveContainer width="100%" height="100%">
+                <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
                     <PieChart>
                         <Pie
-                            data={data}
+                            data={chartData}
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
                             outerRadius={80}
-                            fill="#8884d8"
+                            fill="hsl(var(--primary))"
                             paddingAngle={5}
                             dataKey="value"
                             nameKey="name"
                         >
-                            {data.map((entry, index) => (
+                            {chartData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip />
-                        <Legend iconType="circle" />
+                        <Tooltip content={<ChartTooltipContent />} />
+                        <Legend content={<ChartLegendContent />} />
                     </PieChart>
-                </ResponsiveContainer>
+                </ChartContainer>
             </div>
         </Card>
     );

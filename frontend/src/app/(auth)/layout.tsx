@@ -14,7 +14,7 @@ export default function AuthLayout({
       <div className="w-full max-w-md bg-white shadow-xl rounded-xl p-8 sm:p-10 border border-neutral-200">
         {/* Placeholder for a logo or brand name */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary-700">LMS</h1>
+          <h1 className="text-3xl font-bold text-neutral-800">LMS</h1>
           <p className="text-sm text-neutral-500">Lead Management System</p>
         </div>
         {children} {/* Renders the actual login or register page content */}

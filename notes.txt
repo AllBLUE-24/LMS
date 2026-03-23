@@ -1,0 +1,107 @@
+Potentially Unused Files:
+   * frontend/src/components/dashboard/ChartPlaceholder.tsx
+   * frontend/src/components/dashboard/NurturingKanban.tsx
+   * frontend/src/components/ui/command-menu.tsx
+   * frontend/src/components/ui/command.tsx  //✦ The only place command.tsx is imported is in the unused command-menu.tsx. So it's also unused.
+   * frontend/src/components/ui/animated-counter.tsx
+   * frontend/src/components/layout/AppShell.tsx
+
+Inconsistencies/Confusing Code:**
+   * Incomplete Refactoring: The project is in the middle of a major refactoring to centralize Firebase
+     authentication in an AuthContext. This work is unfinished, leaving many files in a modified or untracked
+     state.
+
+
+ The Plan: Nurturer Workflow Integration
+
+  The core strategy is to extend the existing data models and services to support the new nurturing logic,
+  expose this logic via new, role-protected API endpoints, and then build a dedicated, streamlined UI for
+  the nurturer on the frontend.
+
+  ---
+
+  Phase 1: Backend Foundation (Data Model & API Layer)
+
+  This phase focuses on preparing the database and API to handle the new data and logic.
+
+  Step 1: Extend the Lead Data Model
+  I will update the Lead schema in backend/app/schemas/lead.py to include the new fields required for this
+  feature.
+
+   * New Fields:
+       * next_call_date: Optional[datetime] = None
+       * course_interested: Optional[str] = None
+       * lead_temperature: Optional[str] = None (e.g., 'hot', 'medium', 'cold')
+       * payment_capacity: Optional[str] = None (e.g., 'high', 'low')
+       * estimated_value: Optional[float] = None
+   * New Statuses: I will formally define the new nurturing statuses (e.g., 'Called', 'Interested', 'Not
+     Interested', 'Follow-up') within the system's logic.
+
+  Step 2: Create New Service Logic for Nurturing
+  I will add new methods to backend/app/services/lead_service.py to handle the core logic of the nurturing
+  workflow.
+
+   * `schedule_follow_up`: A new method that takes a lead_id, next_call_date, reason, and note. It will:
+       1. Update the lead document with the new next_call_date.
+       2. Create a new activity in the lead's timeline with the note and reason, so there is a clear history of
+           all follow-up attempts.
+   * Modify `update_lead_status`: I will enhance this method to handle the new nurturing statuses. When a lead
+     is marked as "Not Interested," it will be moved to a terminal state like "Closed - Lost."
+   * Modify `assign_lead`: I will update this method to accept the new data enrichment fields
+     (course_interested, lead_temperature, etc.) and save them to the lead document upon assignment to a
+     closing agent.
+
+  Step 3: Expose New and Updated API Endpoints
+  I will create and modify the necessary routes in backend/app/api/v1/leads.py.
+
+   * `POST /api/v1/leads/{lead_id}/schedule-follow-up`: A new endpoint that allows a nurturer to schedule the
+     next call.
+   * `GET /api/v1/leads/nurturing-queue`: A new endpoint that fetches the leads assigned to the nurturer,
+     sorted by next_call_date.
+   * Update `PUT /api/v1/leads/{lead_id}/assign`: I will modify this endpoint to accept the new data
+     enrichment fields in its request body.
+
+  Step 4: Secure Endpoints for the Nurturer Role
+  I will protect all new and modified endpoints using the get_nurturer_user dependency to ensure that only
+  users with the can_nurture_leads capability can access these features.
+
+  ---
+
+  Phase 2: Frontend Implementation (UI & User Experience)
+
+  This phase focuses on building the user interface that the nurturers will interact with.
+
+  Step 5: Build the Nurturer's Workspace Page
+  I will create a new page at frontend/src/app/(main)/nurturing/page.tsx. This page will:
+   * Fetch the nurturer's leads from the new /api/v1/leads/nurturing-queue endpoint.
+   * Display the leads in two distinct sections:
+       1. Missed Calls: Leads where next_call_date is in the past.
+       2. Upcoming Calls: Leads where next_call_date is in the future, sorted with the soonest first.
+   * Each lead in the list will have buttons to trigger the "Schedule Follow-up" and "Update Status" actions.
+
+  Step 6: Create the "Schedule Follow-up" Modal
+  I will build a new reusable modal component, FollowUpModal.tsx. This modal will contain a form with fields
+   for:
+   * Next Call Date
+   * Reason for the call
+   * Note / Conversation details
+  When submitted, this form will call the new schedule-follow-up API endpoint.
+
+  Step 7: Create the "Assign to Closer" Modal
+  I will build another new modal, AssignToCloserModal.tsx. This will be triggered when a nurturer changes a
+  lead's status to "Interested." The form will include:
+   * A dropdown to select the Closing Agent.
+   * The new data enrichment fields: Course Interested, Lead Temperature, etc.
+  When submitted, this will call the updated assign API endpoint.
+
+  Step 8: Update the Closing Agent's View
+  To ensure the closing agent sees the enriched data, I will modify the lead detail page
+  (frontend/src/app/(main)/leads/[lead_id]/page.tsx). I will add a new card or section that neatly displays
+  the information passed on by the nurturer.
+
+  Step 9: Integrate with Frontend State Management
+  I will add the new API calls to frontend/src/store/apiSlice.ts, creating hooks like
+  useScheduleFollowUpMutation. I will configure the appropriate tags to ensure that when a follow-up is
+  scheduled or a lead is updated, the nurturer's workspace page automatically refreshes its data.
+
+  ---

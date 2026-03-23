@@ -4,8 +4,9 @@
 
 import React, { useState } from 'react';
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+
 import { doc, setDoc } from "firebase/firestore"; // Import setDoc
-import { auth, db } from '@/lib/firebase'; // Import db
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ export default function RegisterPage() {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
-
+    const { auth, db } = useAuth(); // Access auth and db from context
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -39,7 +40,7 @@ export default function RegisterPage() {
                 name: name,
                 email: user.email,
                 capabilities: [], // New users start with no special capabilities
-                organizationId: "default_org" // This would be dynamic in a real multi-tenant app
+                tenantId: "default_org" // This would be dynamic in a real multi-tenant app
             });
 
             router.push('/dashboard');

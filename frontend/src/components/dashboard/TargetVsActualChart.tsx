@@ -2,14 +2,14 @@ import React from 'react';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-export const TargetVsActualChart = ({ actual, target }: { actual: number, target: number }) => {
+export const TargetVsActualChart = ({ actual, target, title }: { actual: number, target: number, title: string }) => {
     const percentage = target > 0 ? Math.round((actual / target) * 100) : 0;
     const data = [{ name: 'Leads', value: percentage }];
 
     return (
-        <Card className="glass-card h-full">
+        <Card className="h-full shadow-md">
             <CardHeader>
-                <CardTitle className="text-base font-medium text-zinc-600">Monthly Target</CardTitle>
+                <CardTitle className="text-base font-medium text-muted-foreground">{title}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center p-0 pb-4 -mt-4">
                 <div className="w-full h-48">
@@ -35,7 +35,7 @@ export const TargetVsActualChart = ({ actual, target }: { actual: number, target
                                 y="50%"
                                 textAnchor="middle"
                                 dominantBaseline="middle"
-                                className="text-4xl font-bold fill-zinc-900"
+                                fill="hsl(var(--foreground))"
                             >
                                 {percentage}%
                             </text>
@@ -44,7 +44,7 @@ export const TargetVsActualChart = ({ actual, target }: { actual: number, target
                                 y="68%"
                                 textAnchor="middle"
                                 dominantBaseline="middle"
-                                className="text-sm fill-zinc-500"
+                                className="text-sm fill-muted-foreground"
                             >
                                 {actual.toLocaleString()} / {target.toLocaleString()}
                             </text>

@@ -10,10 +10,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          "w-full px-3 py-2 bg-white text-sm text-zinc-800 placeholder-zinc-400",
-          "border border-zinc-200 rounded-md",
-          "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-          "transition-shadow duration-200",
+          "w-full px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground",
+          "border border-input rounded-md",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent",
+          "transition-all duration-200 ease-in-out focus:scale-[1.01] focus:shadow-md", /* Added focus effects */
           className
         )}
         ref={ref}

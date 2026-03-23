@@ -6,9 +6,9 @@ export type User = {
   id: string;
   email: string;
   name?: string;
-  role: 'Admin' | 'Lead Generator' | 'Nurturing Agent' | 'Closing Agent';
-  createdAt: Date;
-  updatedAt: Date;
+  capabilities?: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
 };
 
 // Define the Lead type based on our architecture document
@@ -31,7 +31,38 @@ export type Lead = {
   lastUpdatedDate: Date;
   notes?: { timestamp: Date; userId: string; content: string }[];
   communicationHistory?: { timestamp: Date; type: 'email' | 'whatsapp' | 'call'; details: string; status: string }[];
-  organizationId: string;
+  tenantId: string;
 };
 
+// --- Chat Types ---
+
+export interface Message {
+  id?: string;
+  conversation_id: string; // To identify which conversation this message belongs to
+  sender_id: string;
+  content: string;
+  timestamp: string; // ISO 8601 date string
+  file_url?: string;
+  file_type?: string;
+}
+
+export interface Conversation {
+  id: string;
+  participants: string[]; // Array of user IDs
+  is_team_chat: boolean;
+  team_id?: string;
+  last_message?: Message;
+  created_at: string; // ISO 8601 date string
+  updated_at: string; // ISO 8601 date string
+}
+
 // Add other types as needed, e.g., for forms, API responses, etc.
+
+export type Notification = {
+  id: string;
+  message: string;
+  is_read: boolean;
+  timestamp: string;
+  link?: string;
+  user_id: string;
+};
